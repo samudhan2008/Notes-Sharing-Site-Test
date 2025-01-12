@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Result</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Result</h1>
+        {% if success %}
+        <div class="success">
+            <p>{{ message }}</p>
+        </div>
+        <a href="/" class="btn">Go Back to Home</a>
+        {% else %}
+        <div class="error">
+            <p>{{ message }}</p>
+        </div>
+        <a href="/upload" class="btn">Try Again</a>
+        {% endif %}
+    </div>
+</body>
+</html>

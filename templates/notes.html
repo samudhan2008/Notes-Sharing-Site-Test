@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/static/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Notes</title>
+</head>
+<body>
+    <h1>Available Notes</h1>
+    {% if notes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Notes</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for note in notes %}
+                    <tr>
+                        <td>{{ note.filename }}</td>
+                        <td><a href="/api/download/{{ note.filename }}"><button>Download</button></a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No notes available.</p>
+    {% endif %}
+    <footer>
+        <p>©2025 SA Studio. All Rights Reserved</p>
+    </footer>
+</body>
+</html>

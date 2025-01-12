@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Notes - Abhijeet's Notes Sharing Site</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Upload Notes</h1>
+  </header>
+
+  <main>
+    <h2>Share Your Notes</h2>
+    <form action="/api/upload-file" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" required>
+      <br><br>
+      <button type="submit">Upload</button>
+    </form>
+  </main>
+
+  <footer>
+    <p>All rights reserved © SA Studio</p>
+  </footer>
+</body>
+</html>
