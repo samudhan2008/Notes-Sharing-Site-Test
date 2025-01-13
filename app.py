@@ -67,7 +67,6 @@ def upload_file():
     except Exception as e:
         return render_template("upload_result.html", message=f"Error: {str(e)}", success=False)
 
-
 @app.route('/api/download/<filename>', methods=['GET'])
 def download_file(filename):
     try:
