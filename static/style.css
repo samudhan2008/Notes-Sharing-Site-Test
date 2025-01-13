@@ -1,5 +1,5 @@
 /* Global styles */
-body {
+body1 {
   margin: 0;
   font-family: 'Arial', sans-serif;
   background: linear-gradient(135deg, #1f1c2c, #928dab);
@@ -77,45 +77,47 @@ footer a:hover {
   text-decoration: underline;
 }
 
-/* Container styles */
-.container {
-  margin: 50px auto;
-  padding: 20px;
-  max-width: 600px;
-  background: #fff;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  color: #333;
-}
+body2 {
+  /* Container styles */
+  .container {
+    margin: 50px auto;
+    padding: 20px;
+    max-width: 600px;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    color: #333;
+  }
+  
+  h2 {
+    color: #333;
+  }
 
-h2 {
-  color: #333;
-}
-
-/* Success and error messages */
-.success {
-  color: green;
-  font-size: 1.2em;
-  margin-bottom: 15px;
-}
-
-.error {
-  color: red;
-  font-size: 1.2em;
-  margin-bottom: 15px;
-}
-
-/* Links styled as buttons */
-.btn {
-  display: inline-block;
-  margin-top: 15px;
-  padding: 10px 15px;
-  color: #fff;
-  background-color: #007BFF;
-  text-decoration: none;
-  border-radius: 5px;
-}
-
-.btn:hover {
-  background-color: #0056b3;
+  /* Success and error messages */
+  .success {
+    color: green;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+  }
+  
+  .error {
+    color: red;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+  }
+  
+  /* Links styled as buttons */
+  .btn {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 15px;
+    color: #fff;
+    background-color: #007BFF;
+    text-decoration: none;
+    border-radius: 5px;
+  }
+  
+  .btn:hover {
+    background-color: #0056b3;
+  }
 }
