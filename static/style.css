@@ -76,3 +76,50 @@ footer a {
 footer a:hover {
   text-decoration: underline;
 }
+
+body2 {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+.container {
+    margin: 50px auto;
+    padding: 20px;
+    max-width: 600px;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+h2 {
+    color: #333;
+}
+
+.success {
+    color: green;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+}
+
+.error {
+    color: red;
+    font-size: 1.2em;
+    margin-bottom: 15px;
+}
+
+.btn {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 15px;
+    color: #fff;
+    background-color: #007BFF;
+    text-decoration: none;
+    border-radius: 5px;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
