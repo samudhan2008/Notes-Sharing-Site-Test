@@ -1,14 +1,19 @@
 from flask import Flask, request, jsonify, render_template, send_file
 from pymongo import MongoClient
 import os
+import requests
 
 app = Flask(__name__)
 
-# Fetch MongoDB URI from environment variables
+# Fetch MongoDB URI and API key from environment variables
 MONGO_URI = os.getenv("MONGO_URI")
+URL_SHORTENER_API_KEY = os.getenv("URL_SHORTENER_API_KEY")
+URL_SHORTENER_BASE_URL = os.getenv("URL_SHORTENER_BASE_URL", "https://api.example.com/shorten")
 
 if not MONGO_URI:
     raise ValueError("MONGO_URI environment variable is not set!")
+if not URL_SHORTENER_API_KEY:
+    raise ValueError("URL_SHORTENER_API_KEY environment variable is not set!")
 
 # Create the MongoDB client
 client = MongoClient(MONGO_URI)
@@ -29,6 +34,18 @@ except Exception as e:
 # Folder to store uploaded files
 UPLOAD_FOLDER = "uploaded_files"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def shorten_url(url):
+    """Shorten a URL using a customizable URL shortener service"""
+    headers = {
+        "Authorization": f"Bearer {URL_SHORTENER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {"url": url}
+    response = requests.post(URL_SHORTENER_BASE_URL, json=payload, headers=headers)
+    if response.status_code == 201:
+        return response.json().get("short_url", url)
+    return url
 
 @app.route('/')
 def index():
@@ -79,12 +96,14 @@ def download_file(filename):
         if not os.path.exists(file_path):
             return jsonify({"error": "File does not exist on the server"}), 404
 
-        # Send the file for download
-        return send_file(file_path, as_attachment=True)
+        # Generate shortened URL for the download link
+        download_url = request.url_root + f"api/download/{filename}"
+        shortened_url = shorten_url(download_url)
+
+        return jsonify({"shortened_url": shortened_url}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-          
