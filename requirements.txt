@@ -3,3 +3,9 @@ Flask-Cors==3.0.10
 pymongo==4.5.0,<4.5
 dnspython==2.3.0
 Werkzeug>=2.2.5,<3.0
+flask
+flask-admin
+flask-login
+flask-bcrypt
+flask-mongoengine
+gunicorn

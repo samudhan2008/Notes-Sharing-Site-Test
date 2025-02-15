@@ -1,90 +1,90 @@
-from flask import Flask, request, jsonify, render_template, send_file
-from pymongo import MongoClient
+from flask import Flask, redirect, url_for, render_template, request, flash
+from flask_mongoengine import MongoEngine
+from flask_admin import Admin
+from flask_admin.contrib.mongoengine import ModelView
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
+from flask_bcrypt import Bcrypt
 import os
 
+# Initialize Flask app
 app = Flask(__name__)
 
-# Fetch MongoDB URI from environment variables
-MONGO_URI = os.getenv("MONGO_URI")
+# Load MongoDB connection from environment variable
+app.config['MONGODB_SETTINGS'] = {'host': os.getenv('MONGO_URL', 'mongodb://localhost:27017/notes_db')}
 
-if not MONGO_URI:
-    raise ValueError("MONGO_URI environment variable is not set!")
+# Initialize Extensions
+db = MongoEngine(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
 
-# Create the MongoDB client
-client = MongoClient(MONGO_URI)
+# User Model
+class User(db.Document, UserMixin):
+    username = db.StringField(unique=True, required=True)
+    password = db.StringField(required=True)
+    is_admin = db.BooleanField(default=False)
 
-# Access the database
-db = client.get_database('Site')
+    def get_id(self):
+        return str(self.id)
 
-# Access the collection
-notes_collection = db.get_collection('notes')
+# Notes Model
+class Note(db.Document):
+    title = db.StringField(required=True)
+    filename = db.StringField(required=True)
 
-# Test the connection
-try:
-    print("Connected to MongoDB:", db.list_collection_names())
-except Exception as e:
-    print(f"Error connecting to MongoDB: {e}")
-    raise
+# Flask-Admin Secure View
+class AdminView(ModelView):
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.is_admin
 
-# Folder to store uploaded files
-UPLOAD_FOLDER = "uploaded_files"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('login'))
 
+# Initialize Flask-Admin
+admin = Admin(app, name='Admin Panel', template_mode='bootstrap4')
+admin.add_view(AdminView(User))
+admin.add_view(AdminView(Note))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.objects(id=user_id).first()
+
+# Automatically create admin user if not exists
+@app.before_first_request
+def create_admin():
+    if not User.objects(username="admin"):
+        hashed_pw = bcrypt.generate_password_hash("adminpass").decode('utf-8')
+        admin_user = User(username="admin", password=hashed_pw, is_admin=True)
+        admin_user.save()
+        print("Admin user created!")
+
+# Login Route
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.objects(username=username).first()
+
+        if user and bcrypt.check_password_hash(user.password, password):
+            login_user(user)
+            flash('Logged in successfully!', 'success')
+            return redirect(url_for('admin.index'))
+        else:
+            flash('Invalid credentials.', 'danger')
+
+    return render_template('login.html')
+
+# Logout Route
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('home'))
+
+# Home Route
 @app.route('/')
-def index():
-    return render_template('index.html')
+def home():
+    return "Welcome to Notes Sharing Site!"
 
-@app.route('/upload')
-def upload_page():
-    return render_template('upload.html')
-
-@app.route('/notes')
-def notes_page():
-    # Fetch all notes from the database
-    notes = notes_collection.find({}, {"_id": 0, "filename": 1})
-    return render_template('notes.html', notes=notes)
-
-@app.route('/api/upload-file', methods=['POST'])
-def upload_file():
-    try:
-        if 'file' not in request.files:
-            return render_template("upload_result.html", message="No file part", success=False)
-        file = request.files['file']
-        if file.filename == '':
-            return render_template("upload_result.html", message="No selected file", success=False)
-
-        filename = file.filename
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-
-        # Save the file locally
-        file.save(file_path)
-
-        # Save metadata to MongoDB
-        notes_collection.insert_one({"filename": filename, "filepath": file_path})
-
-        return render_template("upload_result.html", message="File uploaded successfully", success=True)
-
-    except Exception as e:
-        return render_template("upload_result.html", message=f"Error: {str(e)}", success=False)
-
-@app.route('/api/download/<filename>', methods=['GET'])
-def download_file(filename):
-    try:
-        # Find the file in the database
-        note = notes_collection.find_one({"filename": filename})
-        if not note:
-            return jsonify({"error": "File not found"}), 404
-
-        file_path = note['filepath']
-        if not os.path.exists(file_path):
-            return jsonify({"error": "File does not exist on the server"}), 404
-
-        # Send the file for download
-        return send_file(file_path, as_attachment=True)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-          
+if __name__ == "__main__":
+    app.run(debug=True)
