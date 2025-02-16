@@ -1,90 +1,105 @@
-from flask import Flask, redirect, url_for, render_template, request, flash
-from flask_mongoengine import MongoEngine
-from flask_admin import Admin
-from flask_admin.contrib.mongoengine import ModelView
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
-from flask_bcrypt import Bcrypt
 import os
+from flask import Flask, render_template, redirect, url_for, flash
+from flask_dance.contrib.github import make_github_blueprint, github
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
-# Initialize Flask app
+# Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
-# Load MongoDB connection from environment variable
-app.config['MONGODB_SETTINGS'] = {'host': os.getenv('MONGO_URL', 'mongodb://localhost:27017/notes_db')}
+# GitHub OAuth
+github_bp = make_github_blueprint(client_id=os.getenv("GITHUB_CLIENT_ID"),
+                                  client_secret=os.getenv("GITHUB_CLIENT_SECRET"))
+app.register_blueprint(github_bp, url_prefix="/login")
 
-# Initialize Extensions
-db = MongoEngine(app)
-bcrypt = Bcrypt(app)
+# MongoDB Connection
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client["notes_sharing"]
+users_collection = db["users"]
+notes_collection = db["notes"]
+
+# Flask-Login setup
 login_manager = LoginManager(app)
-login_manager.login_view = "login"
+login_manager.login_view = "github.login"
 
-# User Model
-class User(db.Document, UserMixin):
-    username = db.StringField(unique=True, required=True)
-    password = db.StringField(required=True)
-    is_admin = db.BooleanField(default=False)
+# Admin User ID (Replace with your GitHub ID)
+ADMIN_USER_ID = "samudhan2008"
 
-    def get_id(self):
-        return str(self.id)
-
-# Notes Model
-class Note(db.Document):
-    title = db.StringField(required=True)
-    filename = db.StringField(required=True)
-
-# Flask-Admin Secure View
-class AdminView(ModelView):
-    def is_accessible(self):
-        return current_user.is_authenticated and current_user.is_admin
-
-    def inaccessible_callback(self, name, **kwargs):
-        return redirect(url_for('login'))
-
-# Initialize Flask-Admin
-admin = Admin(app, name='Admin Panel', template_mode='bootstrap4')
-admin.add_view(AdminView(User))
-admin.add_view(AdminView(Note))
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = user_data["_id"]
+        self.username = user_data["username"]
+        self.email = user_data.get("email", "")
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.objects(id=user_id).first()
+    user_data = users_collection.find_one({"_id": user_id})
+    return User(user_data) if user_data else None
 
-# Automatically create admin user if not exists
-@app.before_first_request
-def create_admin():
-    if not User.objects(username="admin"):
-        hashed_pw = bcrypt.generate_password_hash("adminpass").decode('utf-8')
-        admin_user = User(username="admin", password=hashed_pw, is_admin=True)
-        admin_user.save()
-        print("Admin user created!")
+@app.route("/")
+def home():
+    return render_template("home.html")
 
-# Login Route
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/login/github")
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.objects(username=username).first()
+    if not github.authorized:
+        return redirect(url_for("github.login"))
 
-        if user and bcrypt.check_password_hash(user.password, password):
-            login_user(user)
-            flash('Logged in successfully!', 'success')
-            return redirect(url_for('admin.index'))
-        else:
-            flash('Invalid credentials.', 'danger')
+    resp = github.get("/user")
+    user_info = resp.json()
 
-    return render_template('login.html')
+    user_data = {
+        "_id": str(user_info["id"]),
+        "username": user_info["login"],
+        "email": user_info.get("email", ""),
+    }
 
-# Logout Route
-@app.route('/logout')
+    users_collection.update_one({"_id": user_data["_id"]}, {"$set": user_data}, upsert=True)
+    login_user(User(user_data))
+    return redirect(url_for("home"))
+
+@app.route("/logout")
+@login_required
 def logout():
     logout_user()
-    return redirect(url_for('home'))
+    return redirect(url_for("home"))
 
-# Home Route
-@app.route('/')
-def home():
-    return "Welcome to Notes Sharing Site!"
+@app.route("/admin")
+@login_required
+def admin():
+    if str(current_user.id) != ADMIN_USER_ID:
+        flash("Access Denied: Admins Only!", "danger")
+        return redirect(url_for("home"))
+
+    users = list(users_collection.find({}))
+    notes = list(notes_collection.find({}))
+    return render_template("admin.html", users=users, notes=notes)
+
+@app.route("/admin/delete_user/<user_id>")
+@login_required
+def delete_user(user_id):
+    if str(current_user.id) != ADMIN_USER_ID:
+        flash("Access Denied!", "danger")
+        return redirect(url_for("admin"))
+
+    users_collection.delete_one({"_id": user_id})
+    flash("User deleted successfully!", "success")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/delete_note/<note_id>")
+@login_required
+def delete_note(note_id):
+    if str(current_user.id) != ADMIN_USER_ID:
+        flash("Access Denied!", "danger")
+        return redirect(url_for("admin"))
+
+    notes_collection.delete_one({"_id": note_id})
+    flash("Note deleted successfully!", "success")
+    return redirect(url_for("admin"))
 
 if __name__ == "__main__":
     app.run(debug=True)
