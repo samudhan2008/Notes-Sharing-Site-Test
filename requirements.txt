@@ -1,7 +1,6 @@
 Flask
-flask-dance
 Flask-Login
+Flask-Bcrypt
 pymongo
 python-dotenv
 gunicorn
-Flask-bcrypt
