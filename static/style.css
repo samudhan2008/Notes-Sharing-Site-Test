@@ -164,3 +164,30 @@ h2 {
     padding: 10px;
   }
 }
+
+body.light-mode {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+body.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    padding: 10px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 576px) {
+    h1 {
+        font-size: 1.5rem;
+    }
+    .btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
