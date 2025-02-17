@@ -4,3 +4,6 @@ Flask-Bcrypt
 pymongo
 python-dotenv
 gunicorn
+Flask-Cors==3.0.10
+dnspython==2.3.0
+Werkzeug>=2.2.5,<3.0
