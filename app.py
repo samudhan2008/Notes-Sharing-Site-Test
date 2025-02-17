@@ -17,19 +17,11 @@ MONGO_URI = os.getenv("MONGO_URI")
 if not MONGO_URI:
     raise ValueError("MONGO_URI environment variable is not set!")
 
-# Create the MongoDB client
+# MongoDB Client Setup
 client = MongoClient(MONGO_URI)
-
-# Access the database
-db = client.get_database('Site')
-
-# Access the collection
-notes_collection = db.get_collection('notes')
-
-# MongoDB Connection
-client = MongoClient(os.getenv("MONGO_URI"))
 db = client["notes"]
 users_collection = db["users"]
+notes_collection = db["notes"]
 
 # Flask-Login setup
 login_manager = LoginManager(app)
@@ -40,7 +32,7 @@ bcrypt = Bcrypt(app)
 
 class User(UserMixin):
     def __init__(self, user_data):
-        self.id = user_data["_id"]
+        self.id = str(user_data["_id"])  # Ensure ID is stored as a string
         self.email = user_data["email"]
 
 @login_manager.user_loader
@@ -48,36 +40,83 @@ def load_user(user_id):
     user_data = users_collection.find_one({"_id": user_id})
     return User(user_data) if user_data else None
 
-# Test the connection
-try:
-    print("Connected to MongoDB:", db.list_collection_names())
-except Exception as e:
-    print(f"Error connecting to MongoDB: {e}")
-    raise
+# Ensure users go to login first
+@app.route("/")
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
 
-# Folder to store uploaded files
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    return render_template("dashboard.html")  # Ensure this template exists
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        if users_collection.find_one({"email": email}):
+            flash("Email already registered. Please log in.", "warning")
+            return redirect(url_for("login"))
+
+        hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
+        users_collection.insert_one({"email": email, "password": hashed_password})
+
+        flash("Registration successful! Please log in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        user_data = users_collection.find_one({"email": email})
+
+        if user_data and bcrypt.check_password_hash(user_data["password"], password):
+            login_user(User(user_data))
+            flash("Login successful!", "success")
+            return redirect(url_for("dashboard"))  # Redirect to dashboard after login
+
+        flash("Invalid email or password.", "danger")
+
+    return render_template("login.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Logged out successfully!", "info")
+    return redirect(url_for("login"))
+
+# File Upload Handling
 UPLOAD_FOLDER = "uploaded_files"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
 @app.route('/upload')
+@login_required
 def upload_page():
     return render_template('upload.html')
 
 @app.route('/notes')
+@login_required
 def notes_page():
     # Fetch all notes from the database
     notes = notes_collection.find({}, {"_id": 0, "filename": 1})
     return render_template('notes.html', notes=notes)
 
 @app.route('/api/upload-file', methods=['POST'])
+@login_required
 def upload_file():
     try:
         if 'file' not in request.files:
             return render_template("upload_result.html", message="No file part", success=False)
+
         file = request.files['file']
         if file.filename == '':
             return render_template("upload_result.html", message="No selected file", success=False)
@@ -97,6 +136,7 @@ def upload_file():
         return render_template("upload_result.html", message=f"Error: {str(e)}", success=False)
 
 @app.route('/api/download/<filename>', methods=['GET'])
+@login_required
 def download_file(filename):
     try:
         # Find the file in the database
@@ -113,51 +153,6 @@ def download_file(filename):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-
-        if users_collection.find_one({"email": email}):
-            flash("Email already registered. Please log in.", "warning")
-            return redirect(url_for("login"))
-
-        hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-        users_collection.insert_one({"email": email, "password": hashed_password})
-        
-        flash("Registration successful! Please log in.", "success")
-        return redirect(url_for("login"))
-
-    return render_template("register.html")
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-
-        user_data = users_collection.find_one({"email": email})
-
-        if user_data and bcrypt.check_password_hash(user_data["password"], password):
-            login_user(User(user_data))
-            flash("Login successful!", "success")
-            return redirect(url_for("home"))
-
-        flash("Invalid email or password.", "danger")
-    
-    return render_template("login.html")
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    flash("Logged out successfully!", "info")
-    return redirect(url_for("login"))
 
 if __name__ == "__main__":
     app.run(debug=True)
