@@ -1,8 +1,9 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from pymongo import MongoClient
+from bson import ObjectId
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -11,13 +12,11 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# Fetch MongoDB URI from environment variables
+# MongoDB Connection
 MONGO_URI = os.getenv("MONGO_URI")
-
 if not MONGO_URI:
     raise ValueError("MONGO_URI environment variable is not set!")
 
-# MongoDB Client Setup
 client = MongoClient(MONGO_URI)
 db = client["notes"]
 users_collection = db["users"]
@@ -37,10 +36,10 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    user_data = users_collection.find_one({"_id": user_id})
+    """Fetch user from MongoDB using ObjectId."""
+    user_data = users_collection.find_one({"_id": ObjectId(user_id)})
     return User(user_data) if user_data else None
 
-# Ensure users go to login first
 @app.route("/")
 def index():
     if current_user.is_authenticated:
@@ -50,7 +49,9 @@ def index():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html")  # Ensure this template exists
+    if not os.path.exists("templates/dashboard.html"):
+        return "dashboard.html is missing. Please add it to the templates folder.", 500
+    return render_template("dashboard.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -81,7 +82,7 @@ def login():
         if user_data and bcrypt.check_password_hash(user_data["password"], password):
             login_user(User(user_data))
             flash("Login successful!", "success")
-            return redirect(url_for("dashboard"))  # Redirect to dashboard after login
+            return redirect(url_for("dashboard"))
 
         flash("Invalid email or password.", "danger")
 
@@ -106,7 +107,6 @@ def upload_page():
 @app.route('/notes')
 @login_required
 def notes_page():
-    # Fetch all notes from the database
     notes = notes_collection.find({}, {"_id": 0, "filename": 1})
     return render_template('notes.html', notes=notes)
 
@@ -124,10 +124,8 @@ def upload_file():
         filename = file.filename
         file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-        # Save the file locally
         file.save(file_path)
 
-        # Save metadata to MongoDB
         notes_collection.insert_one({"filename": filename, "filepath": file_path})
 
         return render_template("upload_result.html", message="File uploaded successfully", success=True)
@@ -139,7 +137,6 @@ def upload_file():
 @login_required
 def download_file(filename):
     try:
-        # Find the file in the database
         note = notes_collection.find_one({"filename": filename})
         if not note:
             return jsonify({"error": "File not found"}), 404
@@ -148,7 +145,6 @@ def download_file(filename):
         if not os.path.exists(file_path):
             return jsonify({"error": "File does not exist on the server"}), 404
 
-        # Send the file for download
         return send_file(file_path, as_attachment=True)
 
     except Exception as e:
