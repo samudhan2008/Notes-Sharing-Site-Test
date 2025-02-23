@@ -1,17 +1,11 @@
-# Use official Python image
-FROM python:3.10
+FROM python:3.10-slim
 
-# Set the working directory
 WORKDIR /app
 
-# Copy the application files
+# Install dependencies
+RUN apt-get update && apt-get install -y ca-certificates && \
+    pip install --no-cache-dir flask pymongo
+
 COPY . /app
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Expose the port Flask will run on
-EXPOSE 5000
-
-# Command to run the application
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["python", "app.py"]
