@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h2>Edit Profile</h2>
+    <form method="POST">
+        <input type="text" name="username" value="{{ current_user.username }}" required><br>
+        <input type="email" name="email" value="{{ current_user.email }}" required><br>
+        <input type="password" name="password" placeholder="New Password (optional)"><br>
+        <button type="submit">Update</button>
+    </form>
+</body>
+</html>

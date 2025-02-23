@@ -6,15 +6,21 @@
 </head>
 <body>
     <h2>Welcome, {{ username }}</h2>
-    <form method="POST">
-        <input type="text" name="content" placeholder="Enter your note" required>
-        <button type="submit">Add Note</button>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".pdf" required>
+        <button type="submit">Upload PDF</button>
     </form>
+
     <ul>
         {% for note in notes %}
-            <li>{{ note.content }} <a href="{{ url_for('delete_note', note_id=note._id) }}">Delete</a></li>
+            <li>
+                <a href="{{ url_for('uploaded_file', filename=note.filename) }}" target="_blank">{{ note.filename }}</a>
+                <a href="{{ url_for('delete_note', note_id=note._id) }}">Delete</a>
+            </li>
         {% endfor %}
     </ul>
+
     <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>
