@@ -11,5 +11,5 @@ A simple web application for sharing notes. Users can upload and download notes 
 ## Setup Instructions
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/abhijeets-notes-sharing-site.git
+   git clone https://github.com/samudhan2008/notes-sharing-site.git
    cd notes-sharing-site
