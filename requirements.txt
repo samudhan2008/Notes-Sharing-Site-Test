@@ -1,5 +1,5 @@
-Flask
-Flask-PyMongo
-Flask-Bcrypt
-Flask-Login
-Werkzeug
+flask
+flask-pymongo
+flask-bcrypt
+flask-login
+werkzeug
