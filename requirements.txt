@@ -7,5 +7,5 @@ flask
 flask-admin
 flask-login
 flask-bcrypt
-flask-mongoengine
 gunicorn
+flask_mongoengine
