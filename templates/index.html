@@ -3,15 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes Sharing Site</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>{% block title %}Notes Sharing Site{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>Welcome to Notes Sharing Site</h1>
-    
-    <div class="button-container">
-        <a href="{{ url_for('register') }}"><button class="btn">Register</button></a>
-        <a href="{{ url_for('login') }}"><button class="btn">Login</button></a>
+    <div class="container">
+        {% block content %}{% endblock %}
     </div>
 </body>
 </html>
+{% extends 'base.html' %}
+
+{% block title %}Home - Notes Sharing Site{% endblock %}
+
+{% block content %}
+    <h1>Welcome to Notes Sharing Site</h1>
+    <div class="button-container">
+        <a href="{{ url_for('register') }}" class="btn">Register</a>
+        <a href="{{ url_for('login') }}" class="btn">Login</a>
+    </div>
+{% endblock %}
+
