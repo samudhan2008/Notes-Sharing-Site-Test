@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>Public Notes</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Note Name</th>
+                    <th>Author</th>
+                    <th>Download</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for note in notes %}
+                <tr>
+                    <td>{{ note.name }}</td>
+                    <td>{{ note.author }}</td>
+                    <td><a href="{{ url_for('download_note', note_id=note.id) }}" class="btn">Download</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
