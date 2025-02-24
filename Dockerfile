@@ -1,28 +1,21 @@
-# Use an official lightweight Python image
-FROM python:3.10-slim
+# Use the official Python image as a base
+FROM python:3.10
 
-# Set the working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Copy the application files to the container
+COPY . /app
 
-# Copy requirements.txt and install dependencies
-COPY requirements.txt requirements.txt
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY . .
-
-# Expose port 5000 for the Flask app
+# Expose the port that the app runs on
 EXPOSE 5000
 
-# Set environment variables
+# Set the environment variables
 ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_ENV=production
 
 # Command to run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
