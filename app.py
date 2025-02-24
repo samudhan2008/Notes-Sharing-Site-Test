@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 import os
 
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb://localhost:27017/notesDB"
+app.config["MONGO_URI"] = "mongodb+srv://scleechadp:scleechadp@site.1n1bj.mongodb.net/?retryWrites=true&w=majority&appName=Site"
 mongo = PyMongo(app)
 app.secret_key = "your_secret_key"
 UPLOAD_FOLDER = "static/uploads"
