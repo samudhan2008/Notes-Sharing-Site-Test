@@ -15,7 +15,17 @@ app.config["MONGO_URI"] = os.getenv("MONGO_URI")
 if not app.config["MONGO_URI"]:
     raise ValueError("MONGO_URI environment variable not set")
 
-mongo = PyMongo(app)
+mongo = PyMongo()
+try:
+    mongo.init_app(app)
+    mongo.cx.server_info()
+    print("MongoDB connected successfully!")
+    # Access the database
+    db = mongo.cx.get_database('Site')
+except Exception as e:
+    print("MongoDB Connection Error:", e)
+    mongo = None
+    db = None
 
 # Secure Secret Key
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", secrets.token_hex(16))
@@ -23,14 +33,6 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", secrets.token_hex(16))
 UPLOAD_FOLDER = "static/uploads"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 Path(UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
-
-# Test MongoDB connection
-try:
-    mongo.cx.server_info()
-    print("MongoDB connected successfully!")
-except Exception as e:
-    print("MongoDB Connection Error:", e)
-    exit(1)
 
 ALLOWED_EXTENSIONS = {"pdf"}
 
@@ -48,12 +50,13 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        if mongo.db.users.find_one({'email': email}):
+        if db and db.users.find_one({'email': email}):
             flash("Email already registered!", "danger")
             return redirect(url_for('register'))
         
         hashed_password = generate_password_hash(password)
-        mongo.db.users.insert_one({'username': username, 'email': email, 'password': hashed_password})
+        if db:
+            db.users.insert_one({'username': username, 'email': email, 'password': hashed_password})
         flash("Registration successful! Please log in.", "success")
         return redirect(url_for('login'))
     
@@ -64,7 +67,12 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        user = mongo.db.users.find_one({'email': email})
+        
+        if db:
+            user = db.users.find_one({'email': email})
+        else:
+            flash("Database connection error. Please try again later.", "danger")
+            return redirect(url_for('login'))
 
         if user and check_password_hash(user['password'], password):
             session['user_id'] = str(user['_id'])
@@ -79,7 +87,10 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' in session:
-        notes = mongo.db.notes.find()
+        if db:
+            notes = db.notes.find()
+        else:
+            notes = []
         return render_template('dashboard.html', notes=notes)
     
     flash("Please log in first!", "warning")
@@ -101,7 +112,8 @@ def upload_file():
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
         file.save(filepath)
         
-        mongo.db.notes.insert_one({'filename': filename, 'path': str(filepath)})
+        if db:
+            db.notes.insert_one({'filename': filename, 'path': str(filepath)})
         flash("File uploaded successfully!", "success")
         return redirect(url_for('dashboard'))
     
