@@ -55,7 +55,7 @@ def register():
             return redirect(url_for('register'))
         
         hashed_password = generate_password_hash(password)
-        if db:
+        if db is not None:
             db.users.insert_one({'username': username, 'email': email, 'password': hashed_password})
         flash("Registration successful! Please log in.", "success")
         return redirect(url_for('login'))
@@ -68,7 +68,7 @@ def login():
         email = request.form['email']
         password = request.form['password']
         
-        if db:
+        if db is not None:
             user = db.users.find_one({'email': email})
         else:
             flash("Database connection error. Please try again later.", "danger")
@@ -87,7 +87,7 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' in session:
-        if db:
+        if db is not None:
             notes = db.notes.find()
         else:
             notes = []
@@ -112,7 +112,7 @@ def upload_file():
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
         file.save(filepath)
         
-        if db:
+        if db is not None:
             db.notes.insert_one({'filename': filename, 'path': str(filepath)})
         flash("File uploaded successfully!", "success")
         return redirect(url_for('dashboard'))
