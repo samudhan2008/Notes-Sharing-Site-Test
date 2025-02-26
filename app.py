@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
+import secrets
 from pathlib import Path
 
 app = Flask(__name__)
@@ -17,9 +18,7 @@ if not app.config["MONGO_URI"]:
 mongo = PyMongo(app)
 
 # Secure Secret Key
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
-if not app.config['SECRET_KEY']:
-    raise ValueError("SECRET_KEY environment variable not set")
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", secrets.token_hex(16))
 
 UPLOAD_FOLDER = "static/uploads"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
