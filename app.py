@@ -21,7 +21,7 @@ try:
     mongo.cx.server_info()
     print("MongoDB connected successfully!")
     # Access the database
-    db = mongo.cx.get_database('Site')
+    db = mongo.cx["Site"]
 except Exception as e:
     print("MongoDB Connection Error:", e)
     mongo = None
@@ -50,7 +50,7 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        if db and db.users.find_one({'email': email}):
+        if db is not None and db.users.find_one({'email': email}):
             flash("Email already registered!", "danger")
             return redirect(url_for('register'))
         
@@ -68,19 +68,29 @@ def login():
         email = request.form['email']
         password = request.form['password']
         
+        print(f"DB is None: {db is None}")
+        print(f"Email: {email}")
+
         if db is not None:
             user = db.users.find_one({'email': email})
+            print(f"User Found: {user}")
         else:
             flash("Database connection error. Please try again later.", "danger")
             return redirect(url_for('login'))
 
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = str(user['_id'])
-            flash("Login successful!", "success")
-            return redirect(url_for('dashboard'))
+        if user and 'password' in user:
+            print(f"Checking Password for {user['email']}")
+            if check_password_hash(user['password'], password):
+                session['user_id'] = str(user['_id'])
+                flash("Login successful!", "success")
+                return redirect(url_for('dashboard'))
+            else:
+                print("Password mismatch!")
         else:
-            flash("Invalid email or password!", "danger")
-            return redirect(url_for('login'))
+            print("User not found!")
+
+        flash("Invalid email or password!", "danger")
+        return redirect(url_for('login'))
     
     return render_template('login.html')
 
