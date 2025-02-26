@@ -1,15 +1,29 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb+srv://scleechadp:scleechadp@site.1n1bj.mongodb.net/?retryWrites=true&w=majority&appName=Site"
+CORS(app)
+
+# Configure MongoDB
+app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb+srv://scleechadp:scleechadp@site.1n1bj.mongodb.net/?retryWrites=true&w=majority&appName=Site")
 mongo = PyMongo(app)
-app.config['SECRET_KEY'] = os.urandom(24)
+
+# Secret key for session management
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", os.urandom(24))
+
 UPLOAD_FOLDER = "static/uploads"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Test MongoDB connection
+try:
+    mongo.cx.server_info()
+    print("MongoDB connected successfully!")
+except Exception as e:
+    print("MongoDB Connection Error:", e)
 
 ALLOWED_EXTENSIONS = {"pdf"}
 
