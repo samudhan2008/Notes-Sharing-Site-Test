@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_pymongo import PyMongo
+from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 
 app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb+srv://scleechadp:scleechadp@site.1n1bj.mongodb.net/?retryWrites=true&w=majority&appName=Site"
 mongo = PyMongo(app)
-app.config['SECRET_KEY'] = os.urandom(24)  # Securely generate a secret key
+app.config['SECRET_KEY'] = os.urandom(24)
 UPLOAD_FOLDER = "static/uploads"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -25,12 +26,13 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        
+
         if mongo.db.users.find_one({'email': email}):
             flash("Email already registered!", "danger")
             return redirect(url_for('register'))
         
-        mongo.db.users.insert_one({'username': username, 'email': email, 'password': password})
+        hashed_password = generate_password_hash(password)
+        mongo.db.users.insert_one({'username': username, 'email': email, 'password': hashed_password})
         flash("Registration successful! Please log in.", "success")
         return redirect(url_for('login'))
     
@@ -41,9 +43,9 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        user = mongo.db.users.find_one({'email': email, 'password': password})
-        
-        if user:
+        user = mongo.db.users.find_one({'email': email})
+
+        if user and check_password_hash(user['password'], password):
             session['user'] = user['username']
             flash("Login successful!", "success")
             return redirect(url_for('dashboard'))
