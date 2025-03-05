@@ -2,11 +2,13 @@ from flask import Flask, render_template, request, redirect, url_for, send_from_
 import os
 import uuid
 from werkzeug.utils import secure_filename
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from datetime import datetime
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # Required for flash messages
+app.secret_key = os.urandom(24)  # Secure random secret key
+csrf = CSRFProtect(app)  # Enable CSRF protection
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
@@ -20,6 +22,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 client = MongoClient("mongodb+srv://scleechadp:scleechadp@site.1n1bj.mongodb.net/?retryWrites=true&w=majority&appName=Site", serverSelectionTimeoutMS=5000)  # Change URI as needed
 db = client['notes_db']
 collection = db['notes']
+collection.create_index([("upload_date", ASCENDING), ("filename", ASCENDING)])  # Optimized index
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -34,7 +37,7 @@ def format_file_data(file):
 
 @app.route('/')
 def index():
-    page = int(request.args.get('page', 1))
+    page = max(int(request.args.get('page', 1)), 1)  # Ensure page is at least 1
     per_page = 10
     files = list(collection.find({}, {"_id": 0, "filename": 1, "original_name": 1, "upload_date": 1, "size": 1})
                    .sort("upload_date", -1)
@@ -47,49 +50,45 @@ def index():
 def upload_file():
     if request.method == 'POST':
         if 'file' not in request.files:
-            flash('No file part', 'error')
-            return redirect(request.url)
+            return jsonify({"error": "No file part"}), 400
         file = request.files['file']
         if file.filename == '':
-            flash('No selected file', 'error')
-            return redirect(request.url)
+            return jsonify({"error": "No selected file"}), 400
         if file and allowed_file(file.filename):
             original_filename = secure_filename(file.filename)
-            unique_filename = str(uuid.uuid4()) + "_" + original_filename
+            unique_filename = f"{uuid.uuid4()}_{original_filename}"
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(file_path)
             file_size = os.path.getsize(file_path)
             collection.insert_one({"filename": unique_filename, "original_name": original_filename, "upload_date": datetime.utcnow(), "size": file_size})
-            flash('File successfully uploaded', 'success')
-            return redirect(url_for('index'))
+            return jsonify({"message": "File successfully uploaded", "filename": unique_filename}), 200
     return render_template('upload.html')
 
-@app.route('/uploads/<filename>')
+@app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    file_entry = collection.find_one({"filename": filename})
+    safe_filename = secure_filename(filename)
+    file_entry = collection.find_one({"filename": safe_filename})
     if not file_entry:
-        flash('File not found', 'error')
-        return redirect(url_for('index'))
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+        return jsonify({"error": "File not found"}), 404
+    return send_from_directory(app.config['UPLOAD_FOLDER'], safe_filename, as_attachment=True)
 
-@app.route('/delete/<filename>', methods=['POST'])
+@app.route('/delete/<path:filename>', methods=['DELETE'])
 def delete_file(filename):
-    file_entry = collection.find_one({"filename": filename})
+    safe_filename = secure_filename(filename)
+    file_entry = collection.find_one({"filename": safe_filename})
     if not file_entry:
-        flash('File not found', 'error')
-        return redirect(url_for('index'))
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        return jsonify({"error": "File not found"}), 404
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
     try:
         os.remove(file_path)
-        collection.delete_one({"filename": filename})
-        flash('File successfully deleted', 'success')
+        collection.delete_one({"filename": safe_filename})
+        return jsonify({"message": "File successfully deleted"}), 200
     except Exception as e:
-        flash(f'Error deleting file: {str(e)}', 'error')
-    return redirect(url_for('index'))
+        return jsonify({"error": f"Error deleting file: {str(e)}"}), 500
 
 @app.route('/api/files', methods=['GET'])
 def api_files():
-    page = int(request.args.get('page', 1))
+    page = max(int(request.args.get('page', 1)), 1)
     per_page = 10
     files = list(collection.find({}, {"_id": 0, "filename": 1, "original_name": 1, "upload_date": 1, "size": 1})
                    .sort("upload_date", -1)
